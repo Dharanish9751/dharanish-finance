@@ -1122,7 +1122,7 @@
     }
     .proof-lightbox-img {
       max-width: min(480px, 90vw);
-      max-height: 85vh;
+      max-height: 72vh;
       border-radius: var(--radius);
       box-shadow: 0 24px 60px rgba(0,0,0,0.6);
       object-fit: contain;
@@ -1232,6 +1232,17 @@
       opacity: 1;
       transform: translateY(0);
     }
+
+    /* ============ DOWNLOAD SAVE DIALOG FIX ============ */
+    html, body { cursor: auto !important; }
+    #dl-save-ready-modal {
+      display:none; position:fixed; inset:0; z-index:10001;
+      background:rgba(0,0,0,0.65); backdrop-filter:blur(6px);
+      align-items:center; justify-content:center; cursor:default;
+    }
+    #dl-save-ready-modal * { cursor:auto; }
+    #dl-save-ready-modal button { cursor:pointer; }
+
   </style>
 
   <!-- Firebase SDK -->
@@ -1266,6 +1277,38 @@
     <div style="display:flex;gap:10px;margin-top:22px;">
       <button onclick="dlPwCancel()" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border-hi);background:transparent;color:var(--text-2);font-size:13px;cursor:pointer;font-family:'Space Grotesk',sans-serif;">Cancel</button>
       <button id="dl-pw-confirm-btn" onclick="dlPwConfirm()" style="flex:2;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent-grad);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:'Space Grotesk',sans-serif;">Download All</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DOWNLOAD SAVE READY MODAL ============ -->
+<div id="dl-save-ready-modal">
+  <div style="background:var(--glass-bg);border:1px solid var(--glass-border-hi);border-radius:var(--radius);padding:30px 34px;width:380px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="font-size:18px;">💾</span>
+      <span style="font-size:16px;font-weight:700;color:var(--text-1);">Save Reports</span>
+    </div>
+    <p id="dl-save-ready-text" style="font-size:12.5px;color:var(--text-2);margin:0;line-height:1.6;">
+      Your reports are ready. Click Save ZIP to choose the location.
+    </p>
+    <div style="display:flex;gap:10px;margin-top:22px;">
+      <button onclick="dlSaveReadyCancel()" type="button" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border-hi);background:transparent;color:var(--text-2);font-size:13px;font-family:'Space Grotesk',sans-serif;">Cancel</button>
+      <button id="dl-save-ready-btn" onclick="dlSaveReadyConfirm()" type="button" style="flex:2;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent-grad);color:#fff;font-size:13px;font-weight:600;font-family:'Space Grotesk',sans-serif;">Save ZIP</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SINGLE REPORT SAVE READY MODAL ============ -->
+<div id="single-save-ready-modal" style="display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;cursor:default;">
+  <div style="background:var(--glass-bg);border:1px solid var(--glass-border-hi);border-radius:var(--radius);padding:30px 34px;width:380px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="font-size:18px;">💾</span>
+      <span style="font-size:16px;font-weight:700;color:var(--text-1);">Save Report</span>
+    </div>
+    <p id="single-save-ready-text" style="font-size:12.5px;color:var(--text-2);margin:0;line-height:1.6;">Your report is ready. Click Save Report to choose the save location.</p>
+    <div style="display:flex;gap:10px;margin-top:22px;">
+      <button onclick="singleSaveReadyCancel()" type="button" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--glass-border-hi);background:transparent;color:var(--text-2);font-size:13px;font-family:'Space Grotesk',sans-serif;cursor:pointer;">Cancel</button>
+      <button id="single-save-ready-btn" onclick="singleSaveReadyConfirm()" type="button" style="flex:2;padding:10px;border-radius:var(--radius-sm);border:none;background:var(--accent-grad);color:#fff;font-size:13px;font-weight:600;font-family:'Space Grotesk',sans-serif;cursor:pointer;">Save Report</button>
     </div>
   </div>
 </div>
@@ -1305,7 +1348,7 @@
 </div>
 
 <!-- ============ ROW ACTION PASSWORD MODAL (delete / download single month) ============ -->
-<div id="row-action-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+<div id="row-action-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);align-items:center;justify-content:center;cursor:default;">
   <div style="background:var(--glass-bg);border:1px solid var(--glass-border-hi);border-radius:var(--radius);padding:32px 36px;width:380px;max-width:90vw;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
     <div id="row-action-icon-wrap" style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
       <!-- icon injected by JS -->
@@ -2364,11 +2407,35 @@
 
       const rBank = v('bankamt');
 
+      // Compute category totals for report (these vars are local to live(), so recompute here)
+      const _dlSnapCats = {};
+      ['rent','ppf','rd','dharanish','mf','eq','dinesh','indus','axis','dbs','sab','groww'].forEach(id => {
+        _dlSnapCats[id] = getCatVal(id);
+      });
+      document.querySelectorAll('.cat-cycle-btn[data-dyn]').forEach(el => {
+        _dlSnapCats['dyn_' + el.dataset.dyn] = el.dataset.cat || 'others';
+      });
+      const _dlAllItems = [
+        { n:'Rent', a:rent, id:'rent' }, { n:'PPF', a:ppf, id:'ppf' },
+        { n:'RD', a:rd, id:'rd' }, { n:'Dharanish', a:dhar, id:'dharanish' },
+        { n:'Mutual Fund', a:mf, id:'mf' }, { n:'Direct Equity', a:eq, id:'eq' },
+        { n:'Dinesh', a:din, id:'dinesh' }, { n:'Indus Bank', a:indus, id:'indus' },
+        { n:'Axis Bank', a:axis, id:'axis' }, { n:'DBS Bank', a:dbs, id:'dbs' },
+        { n:'Sabarimalai', a:sab, id:'sab' }, { n:'Groww', a:groww, id:'groww' },
+        ...df1.map(i=>({n:i.n,a:i.a,dyn:true})), ...df2.map(i=>({n:i.n,a:i.a,dyn:true})),
+        ...df3.map(i=>({n:i.n,a:i.a,dyn:true})), ...dfb.map(i=>({n:i.n,a:i.a,dyn:true})),
+        ...df4.map(i=>({n:i.n,a:i.a,dyn:true})), ...extras.map(e=>({n:e.name,a:e.amt,dyn:true})),
+      ];
+      const _dlGetIC = (item) => item.id ? (_dlSnapCats[item.id]||'others') : (_dlSnapCats['dyn_'+item.n]||'others');
+      const _dlCatSum = (cat) => _dlAllItems.filter(i=>_dlGetIC(i)===cat).reduce((s,i)=>s+i.a,0);
+
       const txt = buildReportText({
         sal, t1, rent, ppf, rd, rdn, dhar, t2extra, mf, eq, t3, din,
         indus, axis, dbs, t4, sab, sabn, groww, month,
         extras: extras.slice(),
-        df1, df2, df3, dfb, df4, rBank
+        df1, df2, df3, dfb, df4, rBank,
+        needs: _dlCatSum('needs'), wants: _dlCatSum('wants'),
+        savings: _dlCatSum('savings'), invest: _dlCatSum('invest')
       });
 
       downloadTxt(txt, `${month}.txt`);
@@ -2387,7 +2454,8 @@
       const {
         sal, t1, rent, ppf, rd, rdn, dhar, t2extra, mf, eq, t3, din,
         indus, axis, dbs, t4, sab, sabn, groww, month,
-        extras, df1, df2, df3, dfb, df4, rBank
+        extras, df1, df2, df3, dfb, df4, rBank,
+        needs = 0, wants = 0, savings = 0, invest = 0
       } = data;
 
       const extTot = extras.reduce((s, e) => s + e.amt, 0);
@@ -2487,7 +2555,7 @@
       let invCatStr = `\tPPF \t\t\t\t:\t\t${amtPctTxt(ppf)}\n\tMutual Fund \t\t\t:\t\t${amtPctTxt(mf)}\n  \tDirect Equity \t\t\t:\t\t${amtPctTxt(eq)}\n  \tGroww                           :   \t\t${amtPctTxt(groww)}\n`;
       for (const e of df2) invCatStr += ` \t${e.n}             \t\t:\t\t${amtPctTxt(e.a)}\n`;
 
-      return `\t\t\t\t\t\tTotal Salary : ${P(sal)}\n\n\t\t\t\nTally Amount : ${P(t1)}\n${'='.repeat(21)}\n\n${t1Str}${SEP}\nTally Amount : (${B(t2extra)} + ${B(t2OldR4)} = ${B(t2)})\n${'='.repeat(40)}\n\n${t2Str}\n\n${SEP}\nTally Amount : ${B(t3)}\n${'='.repeat(20)}\n\n${t3Str}\n${SEP}\n\n\t\t|===============================================|\n\t\t|==|  Balance Amount : ${P(rBank)} \t\t     |==|\n\t\t|===============================================|\n\n${bankStr}\n${SEP}\nTally Amount : ${B(t4)}\n${'='.repeat(20)}\n\n${t4Str}\n${extSec}${SEP}\n\t\t\t\t\tCATEGORY TOTALS\n${SEP}\n\nNeeds :-\n${needsCatStr}\nWants :-\n         \n${wantsCatStr}\nSavings :-\n  \n${savCatStr}\nInvestment :-\n\n${invCatStr}\n${SEP}\n\nNeeds \t\t\t\t\t: \t\t${amtPctTxt(needsTot)}\nwants\t\t\t\t\t: \t\t${amtPctTxt(wantsTot)}\nSaving\t\t\t\t\t: \t\t${amtPctTxt(savTot)}\nInvestment\t\t\t\t: \t\t${amtPctTxt(invTot)}\n\n${SEP}\nBank Account Notes:\n======================\n\n  Indus Bank  \t\t\t\t:\t\t Savings Account\n  Axis Bank   \t\t\t\t:\t\t Investment Account\n  DBS Bank    \t\t\t\t:\t\t Emergency Fund\n\n${SEP}\n\t\t\t\t\tTOTAL \n${SEP}\n\nTotal Dharanish\t\t\t= ${P(dhar)}\nTotal Dinesh\t\t\t= ${P(din)}\n--\n${bTotals}\n${SEP}\n\t\t\t\t\tSUMMARY\n${SEP}\n\nTotal Salary\t\t\t= ${B(sal)}\nTotal Deductions\t\t= ${B(spent)} (${pctStr(spent, sal)} of salary)\nBalance Remaining\t\t= ${B(balLeft)} (${pctStr(Math.max(0, balLeft), sal)} of salary)\n\n${SEP}\n`;
+      return `\t\t\t\t\t\tTotal Salary : ${P(sal)}\n\n\t\t\t\nTally Amount : ${P(t1)}\n${'='.repeat(21)}\n\n${t1Str}${SEP}\nTally Amount : (${B(t2extra)} + ${B(t2OldR4)} = ${B(t2)})\n${'='.repeat(40)}\n\n${t2Str}\n\n${SEP}\nTally Amount : ${B(t3)}\n${'='.repeat(20)}\n\n${t3Str}\n${SEP}\n\n\t\t|===============================================|\n\t\t|==|  Balance Amount : ${P(rBank)} \t\t     |==|\n\t\t|===============================================|\n\n${bankStr}\n${SEP}\nTally Amount : ${B(t4)}\n${'='.repeat(20)}\n\n${t4Str}\n${extSec}${SEP}\n\t\t\t\t\tCATEGORY TOTALS\n${SEP}\n\nNeeds :-\n${needsCatStr}\nWants :-\n         \n${wantsCatStr}\nSavings :-\n  \n${savCatStr}\nInvestment :-\n\n${invCatStr}\n${SEP}\n\nNeeds \t\t\t\t\t: \t\t${amtPctTxt(needs)}\nwants\t\t\t\t\t: \t\t${amtPctTxt(wants)}\nSaving\t\t\t\t\t: \t\t${amtPctTxt(savings)}\nInvestment\t\t\t\t: \t\t${amtPctTxt(invest)}\n\n${SEP}\nBank Account Notes:\n======================\n\n  Indus Bank  \t\t\t\t:\t\t Savings Account\n  Axis Bank   \t\t\t\t:\t\t Investment Account\n  DBS Bank    \t\t\t\t:\t\t Emergency Fund\n\n${SEP}\n\t\t\t\t\tTOTAL \n${SEP}\n\nTotal Dharanish\t\t\t= ${P(dhar)}\nTotal Dinesh\t\t\t= ${P(din)}\n--\n${bTotals}\n${SEP}\n\t\t\t\t\tSUMMARY\n${SEP}\n\nTotal Salary\t\t\t= ${B(sal)}\nTotal Deductions\t\t= ${B(spent)} (${pctStr(spent, sal)} of salary)\nBalance Remaining\t\t= ${B(balLeft)} (${pctStr(Math.max(0, balLeft), sal)} of salary)\n\n${SEP}\n`;
     }
 
     /* ============================================================
@@ -3180,9 +3248,70 @@
         month: snap.month,
         extras: snap.extras || [],
         df1: snap.df1 || [], df2: snap.df2 || [], df3: snap.df3 || [], dfb: snap.dfb || [], df4: snap.df4 || [],
-        rBank: snap.rBank
+        rBank: snap.rBank,
+        needs: snap.needs || 0, wants: snap.wants || 0, savings: snap.savings || 0, invest: snap.invest || 0
       });
-      downloadTxt(txt, `${snap.month}.txt`);
+      window._preparedSingleDownloadBlob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+      window._preparedSingleDownloadName = `${snap.month}.txt`;
+      const ready = document.getElementById('single-save-ready-modal');
+      const text = document.getElementById('single-save-ready-text');
+      if (text) text.textContent = `The ${snap.month} report is ready. Click Save Report to choose the save location.`;
+      if (ready) ready.style.display = 'flex';
+      showToast(`✓ ${snap.month} report ready — click Save Report.`);
+    }
+
+    function singleSaveReadyCancel() {
+      const ready = document.getElementById('single-save-ready-modal');
+      if (ready) ready.style.display = 'none';
+      window._preparedSingleDownloadBlob = null;
+      window._preparedSingleDownloadName = null;
+    }
+
+    async function singleSaveReadyConfirm() {
+      const blob = window._preparedSingleDownloadBlob;
+      const filename = window._preparedSingleDownloadName || 'Finance_Report.txt';
+      if (!blob) {
+        singleSaveReadyCancel();
+        return;
+      }
+
+      const ready = document.getElementById('single-save-ready-modal');
+      const btn = document.getElementById('single-save-ready-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
+
+      try {
+        if (window.showSaveFilePicker) {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'Text report',
+              accept: { 'text/plain': ['.txt'] }
+            }]
+          });
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+
+        if (ready) ready.style.display = 'none';
+        window._preparedSingleDownloadBlob = null;
+        window._preparedSingleDownloadName = null;
+        showToast(`✓ ${filename} saved.`);
+      } catch (e) {
+        if (e && e.name !== 'AbortError') showToast('❌ Save failed: ' + (e.message || e));
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Report'; }
+      }
     }
 
     /* ---- Row-level action password gate (delete / download single month) ---- */
@@ -3448,8 +3577,10 @@
       if (_currentUser && !_activeUserId.startsWith('usr_')) {
         modal.style.display = 'none';
         _rowActionPending = null;
-        if (mode === 'delete') deleteSnapshot(month);
-        else downloadHistoryReport(month);
+        setTimeout(() => {
+          if (mode === 'delete') deleteSnapshot(month);
+          else if (mode === 'download') downloadHistoryReport(month);
+        }, 80);
         return;
       }
 
@@ -3475,9 +3606,11 @@
         }
         modal.style.display = 'none';
         _rowActionPending = null;
-        if (mode === 'delete') deleteSnapshot(month);
-        else if (mode === 'edit') editSnapshot(month);
-        else downloadHistoryReport(month);
+        setTimeout(() => {
+          if (mode === 'delete') deleteSnapshot(month);
+          else if (mode === 'edit') editSnapshot(month);
+          else if (mode === 'download') downloadHistoryReport(month);
+        }, 80);
       } catch(e) {
         err.textContent = 'Error: ' + e.message;
         err.style.display = 'block';
@@ -3538,7 +3671,7 @@
       // Google user — skip password check
       if (_currentUser && !_activeUserId.startsWith('usr_')) {
         modal.style.display = 'none';
-        doDownloadAll();
+        setTimeout(() => prepareDownloadAll(), 80);
         return;
       }
 
@@ -3561,7 +3694,7 @@
           return;
         }
         modal.style.display = 'none';
-        doDownloadAll();
+        setTimeout(() => prepareDownloadAll(), 80);
       } catch(e) {
         err.textContent = 'Error: ' + e.message;
         err.style.display = 'block';
@@ -3569,45 +3702,135 @@
       }
     }
 
-    async function doDownloadAll() {
+    async function prepareDownloadAll() {
       const hist = getHistory();
       if (!hist || !hist.length) return;
+
       showToast(`⏳ Preparing ZIP with ${hist.length} report(s)...`);
 
-      // Load JSZip from CDN if not already loaded
       if (typeof JSZip === 'undefined') {
         await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-          s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
         });
       }
 
       const zip = new JSZip();
+
       hist.forEach(snap => {
         const txt = buildReportText({
-          sal: snap.sal, t1: snap.t1, rent: snap.rent, ppf: snap.ppf, rd: snap.rd, rdn: snap.rdn, dhar: snap.dhar,
-          t2extra: snap.t2extra, mf: snap.mf, eq: snap.eq,
-          t3: snap.t3, din: snap.din,
-          indus: snap.indus, axis: snap.axis, dbs: snap.dbs,
+          sal: snap.sal, t1: snap.t1, rent: snap.rent, ppf: snap.ppf, rd: snap.rd, rdn: snap.rdn,
+          dhar: snap.dhar, t2extra: snap.t2extra, mf: snap.mf, eq: snap.eq,
+          t3: snap.t3, din: snap.din, indus: snap.indus, axis: snap.axis, dbs: snap.dbs,
           t4: snap.t4, sab: snap.sab, sabn: snap.sabn, groww: snap.groww,
-          month: snap.month,
-          extras: snap.extras || [],
+          month: snap.month, extras: snap.extras || [],
           df1: snap.df1 || [], df2: snap.df2 || [], df3: snap.df3 || [], dfb: snap.dfb || [], df4: snap.df4 || [],
-          rBank: snap.rBank
+          rBank: snap.rBank,
+          needs: snap.needs || 0, wants: snap.wants || 0, savings: snap.savings || 0, invest: snap.invest || 0
         });
         zip.file(`${snap.month}.txt`, txt);
       });
 
       const blob = await zip.generateAsync({ type: 'blob' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Dharanish_Finance_Reports_${new Date().toISOString().slice(0,10)}.zip`;
-      document.body.appendChild(a); a.click();
-      document.body.removeChild(a); URL.revokeObjectURL(url);
-      showToast(`✓ Downloaded ${hist.length} report(s) as ZIP!`);
+      window._preparedDownloadBlob = blob;
+      window._preparedDownloadName =
+        `Dharanish_Finance_Reports_${new Date().toISOString().slice(0,10)}.zip`;
+
+      const ready = document.getElementById('dl-save-ready-modal');
+      const text = document.getElementById('dl-save-ready-text');
+      if (text) text.textContent = `Your ${hist.length} report(s) are ready. Click Save ZIP to choose the save location.`;
+      if (ready) ready.style.display = 'flex';
+      showToast(`✓ ZIP ready — click Save ZIP.`);
+    }
+
+    function dlSaveReadyCancel() {
+      const ready = document.getElementById('dl-save-ready-modal');
+      if (ready) ready.style.display = 'none';
+      window._preparedDownloadBlob = null;
+    }
+
+    async function dlSaveReadyConfirm() {
+      const blob = window._preparedDownloadBlob;
+      const filename = window._preparedDownloadName || 'Dharanish_Finance_Reports.zip';
+      if (!blob) {
+        dlSaveReadyCancel();
+        return;
+      }
+
+      const ready = document.getElementById('dl-save-ready-modal');
+      const btn = document.getElementById('dl-save-ready-btn');
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Opening…';
+      }
+
+      /*
+       * Important fix:
+       * The Save As picker is now opened directly from the user's click.
+       * The old code opened it after an async password/Firebase/ZIP operation,
+       * which loses the original user activation and can cause cursor/input
+       * rendering problems in Chromium's native file picker.
+       */
+      try {
+        if (window.showSaveFilePicker) {
+          const handle = await window.showSaveFilePicker({
+            suggestedName: filename,
+            types: [{
+              description: 'ZIP archive',
+              accept: { 'application/zip': ['.zip'] }
+            }]
+          });
+
+          const writable = await handle.createWritable();
+          await writable.write(blob);
+          await writable.close();
+
+          if (ready) ready.style.display = 'none';
+          window._preparedDownloadBlob = null;
+          showToast('✓ Reports saved successfully.');
+          return;
+        }
+
+        // Fallback for browsers without File System Access API.
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.position = 'fixed';
+        a.style.left = '-10000px';
+        a.style.top = '-10000px';
+        a.style.cursor = 'auto';
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          a.remove();
+          URL.revokeObjectURL(url);
+        }, 1500);
+
+        if (ready) ready.style.display = 'none';
+        window._preparedDownloadBlob = null;
+        showToast('✓ Download started.');
+      } catch (e) {
+        if (e && e.name === 'AbortError') {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Save ZIP';
+          }
+          return;
+        }
+
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save ZIP';
+        }
+        showToast('Save cancelled or failed.');
+        console.error('Save ZIP error:', e);
+      }
     }
 
 
